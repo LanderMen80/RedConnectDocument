@@ -39,6 +39,14 @@
                 <version>0.33.0</version>
             </dependency>
 
+          <!-- Modelo de embeddings equilibrada y recomendada Equilibrio perfecto, proyectos estándar y hardware moderado. -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-ollama</artifactId>
+                <version>0.33.0</version> <!-- Usa la última versión disponible -->
+            </dependency>
+            
+
             <!-- Para leer y hacer Chunking de PDFs fácilmente -->
             <dependency>
                 <groupId>dev.langchain4j</groupId>

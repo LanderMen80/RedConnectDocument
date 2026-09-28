@@ -14,37 +14,47 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 public class IndexadorPDFCarpeta {
 
     public static void main(String[] args) {
-         
-            // 1. Configurar la ruta del PDF de prueba en tu notebook
-            String RutaCarpeta = "D:\\FuentesDev\\PDF_EJEMPLOS\\ORD_ENVIADOS";
-        //     String strArchivo = "";
-             File fldCarpetaInicial = new File(RutaCarpeta);
-        //     File[] listOfFiles = folder.listFiles();
-        //     for (File file : listOfFiles) {
-        //         if (file.isFile()) {
-        //             System.out.println(file.getName());
-        //         }
-        //     }
+
+        // 1. Configurar la ruta del PDF de prueba en tu notebook
+        // String RutaCarpeta = "D:\\FuentesDev\\PDF_EJEMPLOS\\ORD_ENVIADOS";
+        String RutaCarpeta = "D:\\COVI7868_SINCRONIZACION_RESPALDO\\COVI7868_AXIOMA\\08 CORRESPONDENCIA\\2026";
+
+        // String strArchivo = "";
+        File fldCarpetaInicial = new File(RutaCarpeta);
+        // File[] listOfFiles = folder.listFiles();
+        // for (File file : listOfFiles) {
+        // if (file.isFile()) {
+        // System.out.println(file.getName());
+        // }
+        // }
         // } catch (Exception e) {
-        //     e.printStackTrace();
+        // e.printStackTrace();
         // }
 
-            listarArchivosRecursivo(fldCarpetaInicial);
+        System.out.println("revisando carpeta: " + RutaCarpeta);
+
+        listarArchivosRecursivo(fldCarpetaInicial);
 
         System.out.println("¡Indexación completada.!");
     }
@@ -70,8 +80,21 @@ public class IndexadorPDFCarpeta {
 
     public static void indexarArchivo(File archivo) {
         String strArchivo = "";
+        FileTime ftFechaArchivo;
+
+        if (!archivo.getName().endsWith(".pdf")) 
+        {
+            return;    
+        }
+
 
         strArchivo = archivo.getPath();
+        try {
+            ftFechaArchivo = Files.getLastModifiedTime(archivo.toPath());
+        } catch (IOException e) {
+            System.err.println("Cannot get the last modified time - " + e);
+            ftFechaArchivo = null;
+        }
         if (Files.exists(Paths.get(strArchivo)) == false) {
             System.err.println("❌ ERROR: El archivo NO existe en esa ubicación. Revisa el nombre y la extensión.");
             return;
@@ -105,25 +128,14 @@ public class IndexadorPDFCarpeta {
 
             try (Connection conn = DriverManager.getConnection(url, usuario, clave)) {
 
-                String strExiste = "Select count(*) from "
-
-
-
-
-
-
-
-
-
-
                 System.out.println("Conectado a Postgres. Indexando " + fragmentos.size() + " fragmentos...");
 
                 // Preparamos la consulta SQL Híbrida
                 // Usamos to_tsvector para la búsqueda exacta y el marcador de posición para el
                 // vector semántico
-                String sql = "INSERT INTO fragmentos_pdf (pdf_nombre, ruta, contenido_texto, texto_busqueda, vector_embedding) "
+                String sql = "INSERT INTO fragmentos_pdf (pdf_nombre, ruta, fecha_modif, contenido_texto, texto_busqueda, vector_embedding) "
                         +
-                        "VALUES (?, ?,   ?,    to_tsvector('spanish', ?)  ,    ?::vector)";
+                        "VALUES (?, ?,  ? ,  ?,    to_tsvector('spanish', ?)  ,    ?::vector)";
 
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     for (TextSegment fragmento : fragmentos) {
@@ -138,9 +150,10 @@ public class IndexadorPDFCarpeta {
 
                         pstmt.setString(1, Paths.get(archivo.getName()).getFileName().toString());
                         pstmt.setString(2, RutaFull);
-                        pstmt.setString(3, texto);
-                        pstmt.setString(4, texto); // Alimenta el motor de búsqueda clásica (léxica)
-                        pstmt.setString(5, vectorString); // Alimenta pgvector
+                        pstmt.setTimestamp(3, getFechaArchivo(ftFechaArchivo));
+                        pstmt.setString(4, texto);
+                        pstmt.setString(5, texto); // Alimenta el motor de búsqueda clásica (léxica)
+                        pstmt.setString(6, vectorString); // Alimenta pgvector
 
                         pstmt.addBatch(); // Indexación por lotes para no saturar
 
@@ -159,24 +172,42 @@ public class IndexadorPDFCarpeta {
 
 
 
+    private static Timestamp getFechaArchivo(FileTime fileTime) {
+        Timestamp timestamp;
+        try{
+            SimpleDateFormat  dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
+            // DateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+            String dateCreated = dateFormat.format(fileTime.toMillis());
+            Date parsedDate = dateFormat.parse(dateCreated);
+             timestamp = new java.sql.Timestamp(parsedDate.getTime());
+        }
+        catch (Exception ex)
+        {
+            timestamp = Timestamp.valueOf("1900-01-01 01:01:01.000") ;
+        }
 
-    // Función auxiliar para generar la "huella digital" (MD5) de un archivo
-    private static String generarHash(Path archivo) throws NoSuchAlgorithmException, IOException {
-        MessageDigest digest = MessageDigest.getInstance("MD5");
-        try (InputStream is = Files.newInputStream(archivo)) {
-            byte[] buffer = new byte[8192];
-            int leidos;
-            while ((leidos = is.read(buffer)) != -1) {
-                digest.update(buffer, 0, leidos);
-            }
-        }
-        byte[] bytes = digest.digest();
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
+        return timestamp;        
     }
 
-    
+
+
+    // Función auxiliar para generar la "huella digital" (MD5) de un archivo
+    // private static String generarHash(Path archivo) throws
+    // NoSuchAlgorithmException, IOException {
+    // MessageDigest digest = MessageDigest.getInstance("MD5");
+    // try (InputStream is = Files.newInputStream(archivo)) {
+    // byte[] buffer = new byte[8192];
+    // int leidos;
+    // while ((leidos = is.read(buffer)) != -1) {
+    // digest.update(buffer, 0, leidos);
+    // }
+    // }
+    // byte[] bytes = digest.digest();
+    // StringBuilder sb = new StringBuilder();
+    // for (byte b : bytes) {
+    // sb.append(String.format("%02x", b));
+    // }
+    // return sb.toString();
+    // }
+
 }

@@ -17,6 +17,7 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
+import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -24,8 +25,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.util.List;
- 
 
+import com.pgvector.PGvector;
+
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 
 
 public class IndexadorPDF {
@@ -49,12 +54,12 @@ public class IndexadorPDF {
 
             // 3. Hacer CHUNKING: Dividimos el texto en fragmentos de 300 caracteres con 30 de superposición
             // Nota: Para producción usarás tokens, pero para probar en tu laptop con caracteres es ultra rápido.
-            DocumentSplitter splitter = DocumentSplitters.recursive(300, 30);
+            // DocumentSplitter splitter = DocumentSplitters.recursive(300, 30);
             
-            List<TextSegment> fragmentos = splitter.split(documento);
+            //List<TextSegment> fragmentos = splitter.split(documento);
 
             // 4. Inicializar el Modelo de Embedding Local (Se ejecuta 100% en la CPU de tu notebook)
-            EmbeddingModel modeloEmbedding = new AllMiniLmL6V2EmbeddingModel();
+            //EmbeddingModel modeloEmbedding = new AllMiniLmL6V2EmbeddingModel();
 
             // 5. Conectar a PostgreSQL
             String url = "jdbc:postgresql://localhost:5432/poc"; // cambia 'postgres' por tu base de datos si aplica
@@ -62,36 +67,38 @@ public class IndexadorPDF {
             String clave = "marco";
 
             try (Connection conn = DriverManager.getConnection(url, usuario, clave)) {
-                System.out.println("Conectado a Postgres. Indexando " + fragmentos.size() + " fragmentos...");
+                //System.out.println("Conectado a Postgres. Indexando " + fragmentos.size() + " fragmentos...");
 
                 // Preparamos la consulta SQL Híbrida
                 // Usamos to_tsvector para la búsqueda exacta y el marcador de posición para el vector semántico
-                String sql = "INSERT INTO fragmentos_pdf (pdf_nombre, ruta, contenido_texto, texto_busqueda, vector_embedding) " +
-                             "VALUES (?, ?,   ?,    to_tsvector('spanish', ?)  ,    ?::vector)";
+                String sql = "INSERT INTO fragmentos2_pdf (pdf_nombre, ruta, texto_busqueda, vector_embedding) " +
+                             "VALUES (?, ?,   to_tsvector('spanish', ?)  ,    ?::vector)";
 
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                    for (TextSegment fragmento : fragmentos) {
-                        String texto = fragmento.text();
+                    //for (TextSegment fragmento : fragmentos) {
+                        String texto = documento.text();
                         
                         // Generamos el embedding conceptual del fragmento
-                        Embedding embedding = modeloEmbedding.embed(texto).content();
-                        String vectorString = embedding.toString(); // Convierte el vector a formato [0.1, 0.2, ...]
+                        // Embedding embedding = modeloEmbedding.embed(texto).content();
+                        ConectateOllama();
 
-                        vectorString = vectorString.replace("Embedding { vector = ","");
-                        vectorString = vectorString.replace("}","");
+                        PGvector pgVector  = Enviar(texto);
+                        // String vectorString = embedding.toString(); // Convierte el vector a formato [0.1, 0.2, ...]
+
+                        // vectorString = vectorString.replace("Embedding { vector = ","");
+                        // vectorString = vectorString.replace("}","");
                         
 
                         pstmt.setString(1, Paths.get(rutaPdf).getFileName().toString());
-                        pstmt.setString(2, RutaFull);
-                        pstmt.setString(3, texto);
-                        pstmt.setString(4, texto); // Alimenta el motor de búsqueda clásica (léxica)
-                        pstmt.setString(5, vectorString); // Alimenta pgvector
+                        pstmt.setString(2, RutaFull);                        
+                        pstmt.setString(3, texto); // Alimenta el motor de búsqueda clásica (léxica)
+                        pstmt.setObject(4, pgVector); // Alimenta pgvector
 
                         pstmt.addBatch(); // Indexación por lotes para no saturar
 
                         System.out.println(pstmt.toString());
 
-                    }
+                    //}
                     pstmt.executeBatch();
                 }
                 System.out.println("¡Indexación completada con éxito en tu laptop!");
@@ -101,4 +108,29 @@ public class IndexadorPDF {
             e.printStackTrace();
         }
     }
+
+
+    private static  OllamaEmbeddingModel objModelo;
+
+    public static void ConectateOllama()
+    {
+        // 1. Obtener el embedding desde Ollama (bge-m3)
+        if (objModelo == null)
+        {
+            objModelo = OllamaEmbeddingModel.builder()
+                    .baseUrl("http://localhost:11434")
+                    .modelName("bge-m3")
+                    .build();
+        }
+    }
+
+    public static PGvector Enviar(String Texto)
+    {
+            Response<Embedding> response = objModelo.embed(Texto);
+            float[] vectorAsFloats = response.content().vector(); // Arreglo de 1024 floats
+            PGvector pgVector = new PGvector(vectorAsFloats);
+
+            return pgVector;
+     }
+
 }
