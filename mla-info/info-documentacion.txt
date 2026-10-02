@@ -1,0 +1,63 @@
+amigo, que tal.
+duda tecnica: este software para que me podría Mayan EDMS es compatible con windows o linux ?
+
+¡Hola! Mayan EDMS es un sistema de gestión documental de código abierto, hecho en Python con Django. Sirve para almacenar, indexar, clasificar y buscar documentos (con OCR incluido), manejar versiones, metadatos, permisos y flujos de trabajo. Es útil si necesitas un archivo digital centralizado, por ejemplo para escanear papeles, tener todo buscable y controlar quién accede a qué.
+
+Compatibilidad:
+
+Linux: es su entorno natural y el recomendado. Funciona muy bien en Debian/Ubuntu y similares.
+Windows: no tiene instalador nativo oficial para Windows. Se puede usar mediante Docker Desktop (con WSL2), que es la forma práctica de correrlo ahí.
+
+En la práctica, la instalación oficial y más soportada es con Docker / Docker Compose, que funciona igual en Linux o en Windows. Si vas a ponerlo en producción, lo más estable es un servidor Linux con Docker.
+
+Si me cuentas para qué lo quieres usar, te digo si te conviene o si hay algo más ligero.
+
+la misma pregunta pero para Paperless-ngx
+
+Explaining Paperless-ngx's purpose and OS compatibility.
+
+Paperless-ngx es un sistema de gestión documental de código abierto pensado sobre todo para digitalizar y organizar papeles. Tiene una carpeta de entrada ("consume") donde dejas PDFs o escaneos, les aplica OCR y los hace buscables. También los clasifica con etiquetas, corresponsales y tipos de documento, y aprende de tus clasificaciones para sugerirlas automáticamente.
+
+Compatibilidad:
+
+Linux: es el entorno principal y el mejor soportado. Funciona bien en Debian/Ubuntu e incluso en equipos modestos como una Raspberry Pi.
+Windows: no hay instalación nativa soportada. Se usa con Docker Desktop (WSL2), o directamente dentro de WSL.
+
+Igual que Mayan, la forma recomendada de instalarlo es Docker Compose, y tiene un script de instalación que deja todo listo en pocos minutos.
+
+Frente a Mayan EDMS, Paperless-ngx es más ligero y más simple de montar y usar, con una interfaz moderna. Mayan es más pesado, pero ofrece más control en flujos de trabajo, permisos finos y estructuras documentales complejas. Para uso personal o de una oficina pequeña, Paperless-ngx suele ser la mejor opción.
+
+es factible realizar una interfaz mas amigable o a la medida para usar por detrás Paperless-ngx
+
+Exploring a custom front end built on Paperless-ngx's API.
+
+Sí, es muy factible. Paperless-ngx está pensado para eso: expone una API REST completa (con documentación en /api/schema/view/ en tu propia instalación) y casi todo lo que hace su interfaz web lo puedes hacer por API.
+
+Qué puedes hacer por API:
+
+Subir documentos (equivale a la carpeta "consume", pero desde tu app)
+Buscar y filtrar por texto, etiquetas, corresponsales, fechas, tipos de documento
+Descargar el original, el archivado con OCR o las miniaturas
+Crear y editar metadatos, etiquetas y campos personalizados
+Gestionar usuarios y permisos
+
+Cómo se suele montar:
+
+Paperless-ngx corre como "motor" (OCR, almacenamiento, indexado).
+Tu interfaz a medida habla con él por API, con un token de autenticación.
+Los usuarios solo ven tu interfaz, simplificada a lo que necesitan.
+
+Opciones para la interfaz:
+
+Web propia con React/Vue, o algo más simple con Flask/Django/FastAPI más un frontend ligero.
+App de escritorio o móvil, ya que existen apps de terceros que usan la misma API.
+Herramientas low-code como Retool o Appsmith, que se conectan a APIs REST y son rápidas para interfaces internas.
+Integraciones: n8n o scripts en Python para flujos automáticos (por ejemplo, recibir un correo y subir el adjunto directo).
+
+Cosas a tener en cuenta:
+
+Si la interfaz es para varias personas, conviene que el backend de tu app maneje los permisos y no exponga el token de Paperless directamente al navegador.
+La API puede cambiar entre versiones, así que fija la versión de Paperless-ngx y prueba antes de actualizar.
+Si solo quieres una interfaz más simple, a veces basta con configurar bien las vistas guardadas y los permisos de Paperless antes de construir algo desde cero.
+
+¿Qué tipo de usuarios la usarían y qué es lo que les resulta incómodo de la interfaz actual? Con eso te oriento mejor sobre si vale la pena hacerla a medida.

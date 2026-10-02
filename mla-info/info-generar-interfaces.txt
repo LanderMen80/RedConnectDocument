@@ -1,0 +1,164 @@
+Sí, amigo. Y para lo que tú estás pensando —un sistema documental personalizado, con usuarios, documentos, metadatos, búsquedas, trazabilidad, permisos y posiblemente conexión a SQL Server/Oracle— hay varias alternativas interesantes que puedes montar en tu propio servidor sin pagar licencias.
+
+Yo separaría las opciones en dos grupos:
+
+1. Constructor visual de interfaces
+
+Estas herramientas permiten crear pantallas tipo CRUD, formularios, dashboards, búsquedas y administración, conectándose a bases de datos o APIs.
+
+Herramienta	Licencia / modalidad	Ideal para
+Appsmith	Open Source / Apache 2.0 para el core	Interfaces web internas, CRUD, dashboards, SQL y APIs
+ToolJet	Open Source / AGPL-3.0	Aplicaciones internas y formularios visuales
+Budibase	Open Source / GPL-3.0	Aplicaciones empresariales y formularios
+NocoBase	Open Source	Sistemas orientados a datos y back-office
+Refine	Open Source	Si quieres desarrollar con React pero acelerar mucho la interfaz
+
+Appsmith, por ejemplo, permite crear interfaces visualmente, conectar bases de datos y APIs y ejecutar todo en tu propia infraestructura.
+
+ToolJet también tiene una edición Community que puedes instalar localmente; actualmente declara licencia AGPL-3.0 para esa edición y soporte para Docker/Kubernetes/on-premise.
+
+2. Sistemas documentales ya hechos
+
+Aquí hay una opción que creo que te puede interesar muchísimo:
+
+Paperless-ngx
+
+Es un DMS/gestor documental Open Source que permite almacenar documentos, hacer OCR, buscar dentro del contenido, manejar metadatos, etiquetas, tipos documentales, etc. Tiene una interfaz web completa y se puede instalar mediante Docker.
+
+Otra alternativa más orientada a gestión documental empresarial es:
+
+Mayan EDMS
+
+Está pensado específicamente como un Electronic Document Management System (EDMS) y tiene capacidades de gestión documental y flujos. Actualmente está bajo GPL-2.0.
+
+Pero para tu caso yo haría algo diferente
+
+Por lo que hemos conversado anteriormente sobre tu sistema de gestión documental, creo que podrías montar una arquitectura bastante potente sin pagar licencias:
+
+                    USUARIOS
+                       │
+                       ▼
+             ┌──────────────────┐
+             │   INTERFAZ WEB   │
+             │                  │
+             │   Appsmith       │
+             │   o ToolJet      │
+             └────────┬─────────┘
+                      │
+              REST API / SQL
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+          ▼                       ▼
+   ┌──────────────┐       ┌──────────────┐
+   │ SQL Server   │       │   Oracle     │
+   │ / PostgreSQL │       │              │
+   └──────────────┘       └──────────────┘
+          │
+          ▼
+   ┌───────────────────────────┐
+   │     DOCUMENTOS / PDF      │
+   │                           │
+   │ /documentos/...           │
+   │ /contratos/...            │
+   │ /correspondencia/...      │
+   └───────────────────────────┘
+
+Y podrías tener pantallas como:
+
+┌─────────────────────────────────────────────────────┐
+│ SISTEMA DE GESTIÓN DOCUMENTAL                       │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  📁 Contratos       📄 Documentos                   │
+│  ✉ Correspondencia  🔍 Buscar                       │
+│  📊 Dashboard       👥 Usuarios                     │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Documentos recientes                               │
+│                                                     │
+│  Nº      Tipo       Fecha       Estado               │
+│  0397    Carta      01/10/26    Recibido             │
+│  0398    Oficio     01/10/26    En revisión          │
+│  0399    Informe    02/10/26    Aprobado             │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+Y aquí está lo interesante
+
+Como tienes experiencia en Java, C#, Spring Boot, SQL Server y Oracle, yo no abandonaría el desarrollo tradicional.
+
+Podrías hacer:
+
+Frontend
+
+Appsmith / React / Refine
+
+Backend
+
+Spring Boot
+API REST
+
+BD
+
+SQL Server
+Oracle
+o PostgreSQL
+
+Documentos
+
+almacenamiento filesystem
+NAS
+MinIO
+almacenamiento S3 compatible
+
+OCR
+
+Tesseract
+OCRmyPDF
+
+Autenticación
+
+Keycloak
+
+Reverse proxy
+
+Nginx
+
+Contenedores
+
+Docker
+
+Esto te permitiría mantener toda la lógica importante en tu API Java y usar Appsmith/ToolJet únicamente para acelerar la construcción de las interfaces.
+
+Incluso podrías aprovechar Paperless-ngx
+
+Una arquitectura bastante interesante sería:
+
+                 ┌───────────────┐
+                 │    USUARIO    │
+                 └───────┬───────┘
+                         │
+                         ▼
+                ┌─────────────────┐
+                │ SISTEMA PROPIO  │
+                │                 │
+                │ Spring Boot     │
+                │ + Appsmith      │
+                └───────┬─────────┘
+                        │
+          ┌─────────────┼──────────────┐
+          ▼             ▼              ▼
+      SQL Server     REST API      Paperless
+          │                            │
+          │                       OCR / PDF
+          │                            │
+          └──────────────┬─────────────┘
+                         ▼
+                  DOCUMENTOS
+
+Así puedes tener tu propio sistema documental, pero utilizar Paperless-ngx como motor especializado para OCR, indexación y búsqueda documental. Paperless-ngx además permite campos personalizados y una interfaz web para buscar y administrar documentos.
+
+Para tu proyecto concreto, yo partiría evaluando Appsmith + Spring Boot + PostgreSQL/SQL Server + almacenamiento de documentos, y analizaría Paperless-ngx si quieres incorporar OCR e indexación sin desarrollar todo desde cero.
+
+Si quieres, puedo ayudarte a diseñar una plataforma completa de gestión documental 100% sin licencias, incluyendo arquitectura, base de datos, pantallas, permisos, trazabilidad, versionado de documentos, OCR y flujo de correspondencia, pensando específicamente en el tipo de sistema que estás desarrollando.
